@@ -78,12 +78,13 @@ async function main() {
   console.log(`✅ Created car washes: ${carWash1.name}, ${carWash2.name}, ${carWash3.name}`);
 
   // Create Services for Car Wash 1
+  // Prices in cents. Wompi minimum: 150,000 cents (1,500.00 COP)
   console.log('🧼 Creating services...');
   const service1 = await prisma.service.create({
     data: {
       carWashId: carWash1.id,
       name: 'Basic Wash',
-      price: 1500, // $15.00 in cents
+      price: 200000, // 2,000.00 COP (meets Wompi minimum)
       durationMin: 30,
       active: true,
     },
@@ -93,7 +94,7 @@ async function main() {
     data: {
       carWashId: carWash1.id,
       name: 'Premium Wash',
-      price: 2500, // $25.00 in cents
+      price: 350000, // 3,500.00 COP
       durationMin: 45,
       active: true,
     },
@@ -103,7 +104,7 @@ async function main() {
     data: {
       carWashId: carWash1.id,
       name: 'Deluxe Wash + Wax',
-      price: 4000, // $40.00 in cents
+      price: 500000, // 5,000.00 COP
       durationMin: 60,
       active: true,
     },
@@ -114,7 +115,7 @@ async function main() {
     data: {
       carWashId: carWash2.id,
       name: 'Express Wash',
-      price: 1200, // $12.00 in cents
+      price: 150000, // 1,500.00 COP (Wompi minimum)
       durationMin: 20,
       active: true,
     },
@@ -124,7 +125,7 @@ async function main() {
     data: {
       carWashId: carWash2.id,
       name: 'Full Service',
-      price: 3500, // $35.00 in cents
+      price: 450000, // 4,500.00 COP
       durationMin: 75,
       active: true,
     },
@@ -135,7 +136,7 @@ async function main() {
     data: {
       carWashId: carWash3.id,
       name: 'Standard Wash',
-      price: 1800, // $18.00 in cents
+      price: 250000, // 2,500.00 COP
       durationMin: 35,
       active: true,
     },
