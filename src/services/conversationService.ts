@@ -142,7 +142,8 @@ async function handleChooseSede(
     // Build message with options
     let message = 'Hola 👋 Bienvenido al lavado de autos.\n\n¿A qué sede quieres ir?\n\n';
     carWashes.forEach((carWash, index) => {
-      message += `${index + 1}️⃣ ${carWash.name}\n`;
+      const formattedNumber = formatNumberWithEmoji(index + 1);
+      message += `${formattedNumber} ${carWash.name}\n`;
     });
 
     await sendWhatsAppMessage({
@@ -156,9 +157,30 @@ async function handleChooseSede(
   const selectedOption = parseInt(messageText.trim());
 
   if (isNaN(selectedOption) || selectedOption < 1) {
+    // Get all active car washes to show options again
+    const carWashes = await prisma.carWash.findMany({
+      where: { active: true },
+      orderBy: { name: 'asc' },
+    });
+
+    if (carWashes.length === 0) {
+      await sendWhatsAppMessage({
+        to: customerPhone,
+        message: 'Lo siento, no hay sedes disponibles en este momento.',
+      });
+      return;
+    }
+
+    // Build message with options
+    let message = 'Por favor, envía el número de la sede que deseas:\n\n';
+    carWashes.forEach((carWash, index) => {
+      const formattedNumber = formatNumberWithEmoji(index + 1);
+      message += `${formattedNumber} ${carWash.name}\n`;
+    });
+
     await sendWhatsAppMessage({
       to: customerPhone,
-      message: 'Por favor, envía el número de la sede que deseas (ej: 1, 2, 3)',
+      message,
     });
     return;
   }
@@ -170,9 +192,16 @@ async function handleChooseSede(
   });
 
   if (selectedOption > carWashes.length) {
+    // Build message with options again
+    let message = 'Opción inválida. Por favor, envía el número de la sede que deseas:\n\n';
+    carWashes.forEach((carWash, index) => {
+      const formattedNumber = formatNumberWithEmoji(index + 1);
+      message += `${formattedNumber} ${carWash.name}\n`;
+    });
+
     await sendWhatsAppMessage({
       to: customerPhone,
-      message: 'Opción inválida. Por favor, envía un número válido.',
+      message,
     });
     return;
   }
@@ -304,6 +333,32 @@ function formatPrice(priceInCents: number): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   });
+}
+
+/**
+ * Helper function to format number with emoji (1-9) or combined emojis (10+)
+ */
+function formatNumberWithEmoji(num: number): string {
+  const emojiNumbers: { [key: number]: string } = {
+    0: '0️⃣',
+    1: '1️⃣',
+    2: '2️⃣',
+    3: '3️⃣',
+    4: '4️⃣',
+    5: '5️⃣',
+    6: '6️⃣',
+    7: '7️⃣',
+    8: '8️⃣',
+    9: '9️⃣',
+  };
+  
+  if (num >= 1 && num <= 9) {
+    return emojiNumbers[num];
+  }
+  
+  // For numbers 10+, combine emojis for each digit
+  const numStr = num.toString();
+  return numStr.split('').map(digit => emojiNumbers[parseInt(digit)]).join('');
 }
 
 /**
@@ -511,7 +566,9 @@ async function handleChooseDate(
   // Build time slots message
   let message = 'Perfecto 🚗\n\nEstos son los horarios disponibles para ese día:\n\n';
   availableSlots.forEach((slot, index) => {
-    message += `${index + 1}️⃣ ${slot}\n`;
+    const number = index + 1;
+    const formattedNumber = formatNumberWithEmoji(number);
+    message += `${formattedNumber} ${slot}\n`;
   });
   message += '\nResponde con el número del horario que prefieras.';
 

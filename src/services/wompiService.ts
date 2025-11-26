@@ -97,7 +97,8 @@ export const generatePaymentLink = async (data: {
     // Use Wompi Payment Links API instead of direct checkout
     // This is more reliable and doesn't require signature in URL
     // Set redirect URL for "back to merchant" button after payment
-    const redirectUrl = process.env.WOMPI_REDIRECT_URL || 'https://wa.me/573001234567'; // Default to WhatsApp
+    // This MUST be set for the "Regresar al comercio" button to appear
+    const redirectUrl = process.env.WOMPI_REDIRECT_URL;
     
     const requestBody: WompiPaymentLinkRequest = {
       name: `Reserva #${data.bookingId}`,
@@ -111,7 +112,7 @@ export const generatePaymentLink = async (data: {
         full_name: data.customerName || `Cliente ${formattedPhone}`,
         phone_number: formattedPhone,
       },
-      redirect_url: redirectUrl,
+      ...(redirectUrl && { redirect_url: redirectUrl }),
     };
 
     const response = await fetch(`${WOMPI_BASE_URL}/payment_links`, {
@@ -150,6 +151,15 @@ export const generatePaymentLink = async (data: {
 
     const paymentData = (result as WompiPaymentLinkResponse).data;
     
+    // Verify redirect_url was saved in Payment Link
+    if (redirectUrl && paymentData.redirect_url !== redirectUrl) {
+      console.warn(`[Wompi] redirect_url mismatch. Requested: ${redirectUrl}, Saved: ${paymentData.redirect_url}`);
+    } else if (redirectUrl) {
+      console.log(`[Wompi] redirect_url configured: ${redirectUrl}`);
+    } else {
+      console.warn('[Wompi] redirect_url not set. "Regresar al comercio" button will not appear.');
+    }
+    
     // Generate integrity signature
     // Order: reference + amount_in_cents + currency + integrity_secret (no separators)
     // Format: "<reference><amount_in_cents><currency><integrity_secret>"
@@ -173,6 +183,12 @@ export const generatePaymentLink = async (data: {
     
     // Add signature:integrity parameter
     urlParams.append('signature:integrity', signatureIntegrity);
+    
+    // Add redirect-url to URL parameters (required for "Regresar al comercio" button)
+    // Wompi requires this parameter in the checkout URL
+    if (redirectUrl) {
+      urlParams.append('redirect-url', redirectUrl);
+    }
     
     // Use payment link ID in the path
     const paymentUrl = `${checkoutBaseUrl}${paymentData.id}?${urlParams.toString()}`;
