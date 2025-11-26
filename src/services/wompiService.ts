@@ -96,6 +96,9 @@ export const generatePaymentLink = async (data: {
     
     // Use Wompi Payment Links API instead of direct checkout
     // This is more reliable and doesn't require signature in URL
+    // Set redirect URL for "back to merchant" button after payment
+    const redirectUrl = process.env.WOMPI_REDIRECT_URL || 'https://wa.me/573001234567'; // Default to WhatsApp
+    
     const requestBody: WompiPaymentLinkRequest = {
       name: `Reserva #${data.bookingId}`,
       description: `Pago de reserva de lavado de autos - Reserva #${data.bookingId}`,
@@ -108,6 +111,7 @@ export const generatePaymentLink = async (data: {
         full_name: data.customerName || `Cliente ${formattedPhone}`,
         phone_number: formattedPhone,
       },
+      redirect_url: redirectUrl,
     };
 
     const response = await fetch(`${WOMPI_BASE_URL}/payment_links`, {
