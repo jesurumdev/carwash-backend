@@ -1,5 +1,8 @@
+import crypto from 'crypto';
+
 const WOMPI_PUBLIC_KEY = process.env.WOMPI_PUBLIC_KEY || '';
 const WOMPI_PRIVATE_KEY = process.env.WOMPI_PRIVATE_KEY || '';
+const WOMPI_INTEGRITY_KEY = process.env.WOMPI_INTEGRITY_KEY || '';
 const WOMPI_ENVIRONMENT = process.env.WOMPI_ENVIRONMENT || 'sandbox';
 
 const WOMPI_BASE_URL =
@@ -64,8 +67,8 @@ export const generatePaymentLink = async (data: {
   customerName?: string;
 }): Promise<{ success: boolean; paymentUrl?: string; paymentReference?: string; error?: string }> => {
   try {
-    if (!WOMPI_PUBLIC_KEY || !WOMPI_PRIVATE_KEY) {
-      console.error('[Wompi] Missing WOMPI_PUBLIC_KEY or WOMPI_PRIVATE_KEY');
+    if (!WOMPI_PUBLIC_KEY || !WOMPI_PRIVATE_KEY || !WOMPI_INTEGRITY_KEY) {
+      console.error('[Wompi] Missing WOMPI_PUBLIC_KEY, WOMPI_PRIVATE_KEY, or WOMPI_INTEGRITY_KEY');
       return {
         success: false,
         error: 'Wompi credentials not configured',
@@ -91,11 +94,72 @@ export const generatePaymentLink = async (data: {
     // Generate a unique reference for this booking
     const paymentReference = `BOOKING_${data.bookingId}_${Date.now()}`;
     
-    // Construct direct checkout URL with required query parameters
-    // Wompi checkout URL format: https://checkout.wompi.co/p/?public-key=...&currency=...&amount-in-cents=...&reference=...
+    // Use Wompi Payment Links API instead of direct checkout
+    // This is more reliable and doesn't require signature in URL
+    const requestBody: WompiPaymentLinkRequest = {
+      name: `Reserva #${data.bookingId}`,
+      description: `Pago de reserva de lavado de autos - Reserva #${data.bookingId}`,
+      single_use: true,
+      collect_shipping: false,
+      currency: data.currency,
+      amount_in_cents: amountInCents,
+      customer_data: {
+        email: data.customerEmail || `${formattedPhone}@whatsapp.local`,
+        full_name: data.customerName || `Cliente ${formattedPhone}`,
+        phone_number: formattedPhone,
+      },
+    };
+
+    const response = await fetch(`${WOMPI_BASE_URL}/payment_links`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${WOMPI_PRIVATE_KEY}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const responseText = await response.text();
+
+    let result: WompiPaymentLinkResponse | { error: any };
+    try {
+      result = JSON.parse(responseText);
+    } catch (e) {
+      console.error('[Wompi] Failed to parse response as JSON:', e);
+      return {
+        success: false,
+        error: `Invalid response from Wompi: ${responseText.substring(0, 100)}`,
+      };
+    }
+
+    if (!response.ok) {
+      console.error('[Wompi] API Error:', result);
+      const errorMessage = (result as any).error?.message || 
+                          (result as any).error?.reason ||
+                          (result as any).error?.type ||
+                          'Failed to create payment link';
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+
+    const paymentData = (result as WompiPaymentLinkResponse).data;
+    
+    // Generate integrity signature
+    // Order: reference + amount_in_cents + currency + integrity_secret (no separators)
+    // Format: "<reference><amount_in_cents><currency><integrity_secret>"
+    const rawSignature = `${paymentReference}${amountInCents}${data.currency}${WOMPI_INTEGRITY_KEY}`;
+    const signatureIntegrity = crypto
+      .createHash('sha256')
+      .update(rawSignature)
+      .digest('hex');
+    
+    // Construct checkout URL with payment link ID and required parameters
+    // Wompi requires parameters even when using Payment Links
     const checkoutBaseUrl = 'https://checkout.wompi.co/p/';
     
-    // Construct URL with query parameters
+    // Build URL with payment link ID and parameters including signature:integrity
     const urlParams = new URLSearchParams({
       'public-key': WOMPI_PUBLIC_KEY,
       'currency': data.currency,
@@ -103,16 +167,16 @@ export const generatePaymentLink = async (data: {
       'reference': paymentReference,
     });
     
-    const paymentUrl = `${checkoutBaseUrl}?${urlParams.toString()}`;
-
-    console.log(`[Wompi] Payment link created for booking ${data.bookingId}: ${paymentUrl}`);
-    console.log(`[Wompi] Payment reference: ${paymentReference}`);
-    console.log(`[Wompi] Amount: ${amountInCents} cents (${(amountInCents / 100).toLocaleString()} ${data.currency})`);
+    // Add signature:integrity parameter
+    urlParams.append('signature:integrity', signatureIntegrity);
+    
+    // Use payment link ID in the path
+    const paymentUrl = `${checkoutBaseUrl}${paymentData.id}?${urlParams.toString()}`;
 
     return {
       success: true,
       paymentUrl: paymentUrl,
-      paymentReference: paymentReference,
+      paymentReference: paymentReference, // Use the reference from URL for webhook tracking
     };
   } catch (error) {
     console.error('[Wompi] Error generating payment link:', error);
