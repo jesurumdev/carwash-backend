@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { processWhatsAppMessage } from '../services/conversationService';
 
 const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN || '';
 
@@ -23,22 +24,77 @@ export const verifyWebhook = (req: Request, res: Response): void => {
 /**
  * Meta / WhatsApp Webhook Receiver (POST)
  * Meta sends events (messages, statuses, etc.) via POST.
- * For now, we just log the payload and return 200.
+ * Processes incoming messages through the conversation state machine.
  */
-export const handleWebhook = (req: Request, res: Response): void => {
+export const handleWebhook = async (req: Request, res: Response): Promise<void> => {
   try {
     const body = req.body;
     console.log('[WhatsApp] Webhook received:', JSON.stringify(body, null, 2));
 
-    // TODO: later plug this into the conversation state machine
-
-    // Respond 200 to acknowledge receipt
+    // Respond 200 immediately to acknowledge receipt (Meta expects quick response)
     res.sendStatus(200);
+
+    // Process webhook asynchronously
+    processWebhookAsync(body);
   } catch (error) {
     console.error('[WhatsApp] Error handling webhook:', error);
-    // Meta expects a 200 when possible, but here we signal server error
-    res.sendStatus(500);
+    // Still return 200 to Meta even if there's an error (we'll log it)
+    if (!res.headersSent) {
+      res.sendStatus(200);
+    }
   }
 };
+
+/**
+ * Process webhook payload asynchronously
+ */
+async function processWebhookAsync(body: any): Promise<void> {
+  try {
+    // Check if this is a WhatsApp Business Account webhook
+    if (body.object !== 'whatsapp_business_account') {
+      console.log('[WhatsApp] Ignoring non-WhatsApp webhook');
+      return;
+    }
+
+    // Process each entry
+    if (body.entry && Array.isArray(body.entry)) {
+      for (const entry of body.entry) {
+        if (entry.changes && Array.isArray(entry.changes)) {
+          for (const change of entry.changes) {
+            // Process messages
+            if (change.value?.messages && Array.isArray(change.value.messages)) {
+              for (const message of change.value.messages) {
+                // Only process text messages for now
+                if (message.type === 'text' && message.text?.body) {
+                  const customerPhone = message.from;
+                  const messageText = message.text.body;
+
+                  console.log(
+                    `[WhatsApp] Processing message from ${customerPhone}: ${messageText}`
+                  );
+
+                  // Process through conversation state machine
+                  await processWhatsAppMessage(customerPhone, messageText);
+                }
+              }
+            }
+
+            // Process status updates (message delivered, read, etc.)
+            if (change.value?.statuses && Array.isArray(change.value.statuses)) {
+              for (const status of change.value.statuses) {
+                console.log(
+                  `[WhatsApp] Message status update: ${status.id} - ${status.status}`
+                );
+                // You can handle status updates here if needed
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('[WhatsApp] Error processing webhook async:', error);
+  }
+}
 
 

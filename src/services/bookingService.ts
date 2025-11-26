@@ -1,13 +1,29 @@
 import prisma from '../config/database';
 
 export const getAllBookings = async () => {
-  // TODO: Implement get all bookings
-  return [];
+  const bookings = await prisma.booking.findMany({
+    include: {
+      CarWash: true,
+      Service: true,
+    },
+    orderBy: {
+      date: 'asc',
+    },
+  });
+
+  return bookings;
 };
 
 export const getBookingById = async (id: number) => {
-  // TODO: Implement get booking by id
-  return null;
+  const booking = await prisma.booking.findUnique({
+    where: { id },
+    include: {
+      CarWash: true,
+      Service: true,
+    },
+  });
+
+  return booking;
 };
 
 export const createBooking = async (data: {
@@ -16,9 +32,26 @@ export const createBooking = async (data: {
   customerPhone: string;
   date: Date;
   status: string;
+  paymentReference?: string;
+  paymentStatus?: string;
 }) => {
-  // TODO: Implement create booking
-  return null;
+  const booking = await prisma.booking.create({
+    data: {
+      carWashId: data.carWashId,
+      serviceId: data.serviceId,
+      customerPhone: data.customerPhone,
+      date: data.date,
+      status: data.status,
+      paymentReference: data.paymentReference || null,
+      paymentStatus: data.paymentStatus || null,
+    },
+    include: {
+      CarWash: true,
+      Service: true,
+    },
+  });
+
+  return booking;
 };
 
 export const updateBooking = async (
@@ -27,14 +60,25 @@ export const updateBooking = async (
     customerPhone?: string;
     date?: Date;
     status?: string;
+    paymentReference?: string;
+    paymentStatus?: string;
   }
 ) => {
-  // TODO: Implement update booking
-  return null;
+  const booking = await prisma.booking.update({
+    where: { id },
+    data,
+    include: {
+      CarWash: true,
+      Service: true,
+    },
+  });
+
+  return booking;
 };
 
 export const deleteBooking = async (id: number) => {
-  // TODO: Implement delete booking
-  return null;
+  await prisma.booking.delete({
+    where: { id },
+  });
 };
 

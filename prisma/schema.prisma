@@ -17,14 +17,19 @@ model User {
 }
 
 model CarWash {
-  id        Int      @id @default(autoincrement())
-  name      String
-  address   String
-  city      String
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  services  Service[]
-  bookings  Booking[]
+  id                Int      @id @default(autoincrement())
+  name              String
+  address           String
+  city              String
+  active            Boolean  @default(true)
+  openingTime       String   @default("09:00")
+  closingTime       String   @default("18:00")
+  slotDurationMinutes Int    @default(30)
+  breakStartTime    String?
+  breakEndTime      String?
+  createdAt         DateTime @default(now())
+  services          Service[]
+  bookings          Booking[]
 }
 
 model Service {
@@ -39,14 +44,27 @@ model Service {
 }
 
 model Booking {
-  id            Int      @id @default(autoincrement())
-  carWashId     Int
-  serviceId     Int
-  customerPhone String
-  date          DateTime
-  status        String   // PENDING_PAYMENT, CONFIRMED, etc.
-  createdAt     DateTime @default(now())
-  CarWash       CarWash  @relation(fields: [carWashId], references: [id])
-  Service       Service  @relation(fields: [serviceId], references: [id])
+  id              Int      @id @default(autoincrement())
+  carWashId       Int
+  serviceId       Int
+  customerPhone   String
+  date            DateTime
+  status          String   // PENDING_PAYMENT, CONFIRMED, IN_SERVICE, READY, etc.
+  paymentReference String?
+  paymentStatus   String?
+  createdAt       DateTime @default(now())
+  CarWash         CarWash  @relation(fields: [carWashId], references: [id])
+  Service         Service  @relation(fields: [serviceId], references: [id])
+}
+
+model ConversationState {
+  id            Int       @id @default(autoincrement())
+  customerPhone String    @unique
+  step          String    // e.g. "CHOOSE_SEDE", "CHOOSE_SERVICE", etc.
+  carWashId     Int?
+  serviceId     Int?
+  date          DateTime?
+  timeSlot      String?
+  updatedAt     DateTime  @updatedAt
 }
 

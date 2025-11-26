@@ -8,6 +8,7 @@ import userRoutes from './routes/userRoutes';
 import statsRoutes from './routes/statsRoutes';
 import paymentRoutes from './routes/paymentRoutes';
 import settingsRoutes from './routes/settingsRoutes';
+import whatsappRoutes from './routes/whatsappRoutes';
 import webhookRoutes from './routes/webhookRoutes';
 import { errorHandler } from './middleware/errorHandler';
 
@@ -27,6 +28,7 @@ app.use('/users', userRoutes);
 app.use('/stats', statsRoutes);
 app.use('/payments', paymentRoutes);
 app.use('/settings', settingsRoutes);
+app.use('/whatsapp', whatsappRoutes);
 
 // Webhooks (WhatsApp, later Wompi, etc.)
 app.use('/webhooks', webhookRoutes);

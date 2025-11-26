@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import * as bookingService from '../services/bookingService';
+import { sendBookingStatusNotification } from '../services/bookingNotificationService';
 
 export const getAllBookings = async (
   req: Request,
@@ -60,6 +61,11 @@ export const updateBooking = async (
 ): Promise<void> => {
   try {
     const id = parseInt(req.params.id);
+    
+    // Get old booking to check status change
+    const oldBooking = await bookingService.getBookingById(id);
+    const oldStatus = oldBooking?.status;
+
     const updateData: any = { ...req.body };
     if (updateData.date) {
       updateData.date = new Date(updateData.date);
@@ -69,6 +75,16 @@ export const updateBooking = async (
     if (!booking) {
       res.status(404).json({ error: 'Booking not found' });
       return;
+    }
+
+    // Send WhatsApp notification if status changed
+    if (updateData.status && updateData.status !== oldStatus) {
+      // Send notification asynchronously (don't wait for it)
+      sendBookingStatusNotification(booking.id, updateData.status, oldStatus).catch(
+        (error) => {
+          console.error('Error sending booking notification:', error);
+        }
+      );
     }
 
     res.json(booking);

@@ -1,27 +1,37 @@
 import { Request, Response } from 'express';
 import * as paymentService from '../services/paymentService';
+import * as bookingService from '../services/bookingService';
 
 export const createPaymentLink = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
-    const { bookingId, amount, currency } = req.body;
+    const { bookingId, amount, currency, customerEmail, customerName } = req.body;
+
+    // Get booking to retrieve customerPhone
+    const booking = await bookingService.getBookingById(bookingId);
+
+    if (!booking) {
+      res.status(404).json({ error: 'Booking not found' });
+      return;
+    }
+
     const paymentLink = await paymentService.createPaymentLink({
       bookingId,
       amount,
       currency,
+      customerPhone: booking.customerPhone,
+      customerEmail,
+      customerName,
     });
-
-    if (!paymentLink) {
-      res.status(400).json({ error: 'Failed to create payment link' });
-      return;
-    }
 
     res.status(201).json(paymentLink);
   } catch (error) {
     console.error('Create payment link error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      error: error instanceof Error ? error.message : 'Internal server error' 
+    });
   }
 };
 

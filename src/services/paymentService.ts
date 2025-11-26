@@ -1,12 +1,31 @@
 import prisma from '../config/database';
+import { generatePaymentLink as generateWompiLink } from './wompiService';
 
 export const createPaymentLink = async (data: {
   bookingId: number;
   amount: number;
   currency?: string;
+  customerPhone: string;
+  customerEmail?: string;
+  customerName?: string;
 }) => {
-  // TODO: Implement Wompi payment link generation
-  return null;
+  const result = await generateWompiLink({
+    bookingId: data.bookingId,
+    amount: data.amount,
+    currency: data.currency || 'COP',
+    customerPhone: data.customerPhone,
+    customerEmail: data.customerEmail,
+    customerName: data.customerName,
+  });
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to create payment link');
+  }
+
+  return {
+    paymentUrl: result.paymentUrl,
+    paymentReference: result.paymentReference,
+  };
 };
 
 export const getPaymentById = async (id: number) => {
