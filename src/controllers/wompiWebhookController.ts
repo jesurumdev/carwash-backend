@@ -44,18 +44,36 @@ async function processWompiWebhookAsync(body: any): Promise<void> {
       return;
     }
 
-    const paymentReference = transaction.id || transaction.reference;
-    const status = transaction.status;
+    // Wompi webhook may send reference in different fields
+    const paymentReference = transaction.reference || 
+                             transaction.id || 
+                             transaction.reference_id ||
+                             body.data?.reference;
+    const status = transaction.status || transaction.state;
+
+    console.log(`[Wompi] Payment reference: ${paymentReference}, Status: ${status}`);
 
     if (!paymentReference) {
-      console.log('[Wompi] No payment reference in webhook');
+      console.log('[Wompi] No payment reference in webhook. Transaction data:', JSON.stringify(transaction, null, 2));
       return;
     }
 
-    // Find booking by payment reference
+    // Extract booking ID from reference if format is BOOKING_{id}_{timestamp}
+    let bookingId: number | null = null;
+    if (typeof paymentReference === 'string' && paymentReference.startsWith('BOOKING_')) {
+      const parts = paymentReference.split('_');
+      if (parts.length >= 2) {
+        bookingId = parseInt(parts[1]);
+      }
+    }
+
+    // Find booking by payment reference or booking ID
     const booking = await prisma.booking.findFirst({
       where: {
-        paymentReference: paymentReference.toString(),
+        OR: [
+          { paymentReference: paymentReference.toString() },
+          ...(bookingId ? [{ id: bookingId }] : []),
+        ],
       },
       include: {
         CarWash: true,

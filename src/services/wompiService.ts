@@ -88,73 +88,31 @@ export const generatePaymentLink = async (data: {
     // Ensure amount is an integer (in cents)
     const amountInCents = Math.round(data.amount);
     
-    const requestBody: WompiPaymentLinkRequest = {
-      name: `Reserva #${data.bookingId}`,
-      description: `Pago de reserva de lavado de autos - Reserva #${data.bookingId}`,
-      single_use: true,
-      collect_shipping: false,
-      currency: data.currency,
-      amount_in_cents: amountInCents,
-      customer_data: {
-        email: data.customerEmail || `${formattedPhone}@whatsapp.local`,
-        full_name: data.customerName || `Cliente ${formattedPhone}`,
-        phone_number: formattedPhone,
-      },
-    };
-
-    console.log(`[Wompi] Request URL: ${WOMPI_BASE_URL}/payment_links`);
-    console.log(`[Wompi] Request body:`, JSON.stringify(requestBody, null, 2));
-    console.log(`[Wompi] Environment: ${WOMPI_ENVIRONMENT}`);
-    console.log(`[Wompi] Using key: ${WOMPI_PRIVATE_KEY.substring(0, 10)}...`);
-
-    const response = await fetch(`${WOMPI_BASE_URL}/payment_links`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${WOMPI_PRIVATE_KEY}`,
-      },
-      body: JSON.stringify(requestBody),
+    // Generate a unique reference for this booking
+    const paymentReference = `BOOKING_${data.bookingId}_${Date.now()}`;
+    
+    // Construct direct checkout URL with required query parameters
+    // Wompi checkout URL format: https://checkout.wompi.co/p/?public-key=...&currency=...&amount-in-cents=...&reference=...
+    const checkoutBaseUrl = 'https://checkout.wompi.co/p/';
+    
+    // Construct URL with query parameters
+    const urlParams = new URLSearchParams({
+      'public-key': WOMPI_PUBLIC_KEY,
+      'currency': data.currency,
+      'amount-in-cents': amountInCents.toString(),
+      'reference': paymentReference,
     });
-
-    const responseText = await response.text();
-    console.log(`[Wompi] Response status: ${response.status}`);
-    console.log(`[Wompi] Response body:`, responseText);
-
-    let result: WompiPaymentLinkResponse | { error: any };
-    try {
-      result = JSON.parse(responseText);
-    } catch (e) {
-      console.error('[Wompi] Failed to parse response as JSON:', e);
-      return {
-        success: false,
-        error: `Invalid response from Wompi: ${responseText.substring(0, 100)}`,
-      };
-    }
-
-    if (!response.ok) {
-      console.error('[Wompi] API Error:', result);
-      const errorMessage = (result as any).error?.message || 
-                          (result as any).error?.reason ||
-                          (result as any).error?.type ||
-                          'Failed to create payment link';
-      return {
-        success: false,
-        error: errorMessage,
-      };
-    }
-
-    const paymentData = (result as WompiPaymentLinkResponse).data;
-
-    // Construct payment URL from ID if not provided in response
-    // Wompi payment link format: https://checkout.wompi.co/p/{id}
-    const paymentUrl = paymentData.url || `https://checkout.wompi.co/p/${paymentData.id}`;
+    
+    const paymentUrl = `${checkoutBaseUrl}?${urlParams.toString()}`;
 
     console.log(`[Wompi] Payment link created for booking ${data.bookingId}: ${paymentUrl}`);
+    console.log(`[Wompi] Payment reference: ${paymentReference}`);
+    console.log(`[Wompi] Amount: ${amountInCents} cents (${(amountInCents / 100).toLocaleString()} ${data.currency})`);
 
     return {
       success: true,
       paymentUrl: paymentUrl,
-      paymentReference: paymentData.id,
+      paymentReference: paymentReference,
     };
   } catch (error) {
     console.error('[Wompi] Error generating payment link:', error);
