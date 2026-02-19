@@ -1,6 +1,21 @@
 import { Request, Response } from 'express';
 import * as bookingService from '../services/bookingService';
 import { sendBookingStatusNotification } from '../services/bookingNotificationService';
+import { centsToPesos } from '../utils/money';
+
+const mapBooking = (booking: any) => {
+  if (booking?.Service?.price === undefined) {
+    return booking;
+  }
+
+  return {
+    ...booking,
+    Service: {
+      ...booking.Service,
+      price: centsToPesos(booking.Service.price),
+    },
+  };
+};
 
 export const getAllBookings = async (
   req: Request,
@@ -8,7 +23,7 @@ export const getAllBookings = async (
 ): Promise<void> => {
   try {
     const bookings = await bookingService.getAllBookings();
-    res.json(bookings);
+    res.json(bookings.map(mapBooking));
   } catch (error) {
     console.error('Get all bookings error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -28,7 +43,7 @@ export const getBookingById = async (
       return;
     }
 
-    res.json(booking);
+    res.json(mapBooking(booking));
   } catch (error) {
     console.error('Get booking by id error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -48,7 +63,7 @@ export const createBooking = async (
       date: new Date(date),
       status: status || 'PENDING_PAYMENT',
     });
-    res.status(201).json(booking);
+    res.status(201).json(mapBooking(booking));
   } catch (error) {
     console.error('Create booking error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -91,7 +106,7 @@ export const updateBookingStatus = async (
       });
     }
 
-    res.json(booking);
+    res.json(mapBooking(booking));
   } catch (error) {
     console.error('Update booking status error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -130,7 +145,7 @@ export const updateBooking = async (
       );
     }
 
-    res.json(booking);
+    res.json(mapBooking(booking));
   } catch (error) {
     console.error('Update booking error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -150,4 +165,3 @@ export const deleteBooking = async (
     res.status(500).json({ error: 'Internal server error' });
   }
 };
-
