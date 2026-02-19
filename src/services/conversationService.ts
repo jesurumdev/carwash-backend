@@ -676,16 +676,17 @@ async function handleConfirmBooking(
     status: 'PENDING_PAYMENT',
   });
 
-  // Generate Wompi payment link
-  const { generatePaymentLink } = await import('./wompiService');
-  const paymentResult = await generatePaymentLink({
-    bookingId: booking.id,
-    amount: service.price,
-    currency: 'COP',
-    customerPhone,
-  });
-
-  if (!paymentResult.success || !paymentResult.paymentUrl) {
+  // Generate payment link
+  const { createPaymentLink } = await import('./paymentService');
+  let paymentResult: { paymentUrl?: string; paymentReference?: string };
+  try {
+    paymentResult = await createPaymentLink({
+      bookingId: booking.id,
+      amount: service.price,
+      currency: 'COP',
+      customerPhone,
+    });
+  } catch (error) {
     await sendWhatsAppMessage({
       to: customerPhone,
       message: 'Lo siento, hubo un error al generar el link de pago. Por favor, contacta con soporte.',
@@ -693,12 +694,13 @@ async function handleConfirmBooking(
     return;
   }
 
-  // Update booking with payment reference
-  const { updateBooking } = await import('./bookingService');
-  await updateBooking(booking.id, {
-    paymentReference: paymentResult.paymentReference || undefined,
-    paymentStatus: 'PENDING',
-  });
+  if (!paymentResult.paymentUrl) {
+    await sendWhatsAppMessage({
+      to: customerPhone,
+      message: 'Lo siento, hubo un error al generar el link de pago. Por favor, contacta con soporte.',
+    });
+    return;
+  }
 
   // Format summary message
   const dateStr = formatDateForDisplay(state.date);
@@ -730,4 +732,3 @@ async function handleConfirmBooking(
     step: 'COMPLETED',
   });
 }
-
