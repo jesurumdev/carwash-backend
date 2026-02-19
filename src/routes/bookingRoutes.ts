@@ -7,6 +7,7 @@ const router = Router();
 router.get('/', authenticate, bookingController.getAllBookings);
 router.get('/:id', authenticate, bookingController.getBookingById);
 router.post('/', bookingController.createBooking);
+router.patch('/:id/status', authenticate, bookingController.updateBookingStatus);
 router.put('/:id', authenticate, bookingController.updateBooking);
 router.delete('/:id', authenticate, bookingController.deleteBooking);
 
