@@ -44,17 +44,33 @@ model Service {
 }
 
 model Booking {
-  id              Int      @id @default(autoincrement())
-  carWashId       Int
-  serviceId       Int
-  customerPhone   String
-  date            DateTime
-  status          String   // PENDING_PAYMENT, CONFIRMED, IN_SERVICE, READY, etc.
+  id               Int       @id @default(autoincrement())
+  carWashId        Int
+  serviceId        Int
+  customerPhone    String
+  date             DateTime
+  status           String    // PENDING_PAYMENT, CONFIRMED, IN_SERVICE, READY, etc.
   paymentReference String?
-  paymentStatus   String?
-  createdAt       DateTime @default(now())
-  CarWash         CarWash  @relation(fields: [carWashId], references: [id])
-  Service         Service  @relation(fields: [serviceId], references: [id])
+  paymentStatus    String?
+  createdAt        DateTime  @default(now())
+  CarWash          CarWash   @relation(fields: [carWashId], references: [id])
+  Service          Service   @relation(fields: [serviceId], references: [id])
+  payments         Payment[]
+}
+
+model Payment {
+  id         Int      @id @default(autoincrement())
+  bookingId  Int
+  reference  String   @unique
+  amount     Int      // cents
+  currency   String   @default("COP")
+  status     String   @default("PENDING") // PENDING, APPROVED, DECLINED, etc.
+  wompiLinkId String?
+  wompiTxnId  String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  Booking    Booking  @relation(fields: [bookingId], references: [id])
 }
 
 model ConversationState {

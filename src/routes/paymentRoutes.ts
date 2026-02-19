@@ -7,6 +7,9 @@ const router = Router();
 // Create payment link (can be public for customers)
 router.post('/links', paymentController.createPaymentLink);
 
+// Get all payments (authenticated) - must be before /:id
+router.get('/', authenticate, paymentController.getAllPayments);
+
 // Get payment by id (authenticated)
 router.get('/:id', authenticate, paymentController.getPaymentById);
 

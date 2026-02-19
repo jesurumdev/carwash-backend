@@ -2,6 +2,26 @@ import { Request, Response } from 'express';
 import * as paymentService from '../services/paymentService';
 import * as bookingService from '../services/bookingService';
 
+export const getAllPayments = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { status, bookingId } = req.query;
+    const filters: { status?: string; bookingId?: number } = {};
+    if (typeof status === 'string') filters.status = status;
+    if (typeof bookingId === 'string') filters.bookingId = parseInt(bookingId);
+
+    const payments = await paymentService.getAllPayments(
+      Object.keys(filters).length > 0 ? filters : undefined
+    );
+    res.json(payments);
+  } catch (error) {
+    console.error('Get all payments error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 export const createPaymentLink = async (
   req: Request,
   res: Response
