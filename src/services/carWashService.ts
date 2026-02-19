@@ -1,13 +1,16 @@
 import prisma from '../config/database';
 
 export const getAllCarWashes = async () => {
-  // TODO: Implement get all car washes
-  return [];
+  return prisma.carWash.findMany({
+    where: { active: true },
+    orderBy: { name: 'asc' },
+  });
 };
 
 export const getCarWashById = async (id: number) => {
-  // TODO: Implement get car wash by id
-  return null;
+  return prisma.carWash.findUnique({
+    where: { id },
+  });
 };
 
 export const createCarWash = async (data: {

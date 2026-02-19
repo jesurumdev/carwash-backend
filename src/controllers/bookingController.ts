@@ -55,6 +55,49 @@ export const createBooking = async (
   }
 };
 
+export const updateBookingStatus = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const id = parseInt(req.params.id);
+    const { status } = req.body;
+
+    if (!status || typeof status !== 'string') {
+      res.status(400).json({ error: 'Status is required' });
+      return;
+    }
+
+    const oldBooking = await bookingService.getBookingById(id);
+    if (!oldBooking) {
+      res.status(404).json({ error: 'Booking not found' });
+      return;
+    }
+
+    const booking = await bookingService.updateBooking(id, { status });
+
+    if (!booking) {
+      res.status(404).json({ error: 'Booking not found' });
+      return;
+    }
+
+    if (status !== oldBooking.status) {
+      sendBookingStatusNotification(
+        booking.id,
+        status,
+        oldBooking.status
+      ).catch((error) => {
+        console.error('Error sending booking notification:', error);
+      });
+    }
+
+    res.json(booking);
+  } catch (error) {
+    console.error('Update booking status error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 export const updateBooking = async (
   req: Request,
   res: Response
