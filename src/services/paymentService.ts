@@ -1,5 +1,10 @@
 import prisma from '../config/database';
-import { generatePaymentLink as generateWompiLink } from './wompiService';
+import {
+  buildCheckoutUrl,
+  generatePaymentLink as generateWompiLink,
+} from './wompiService';
+
+const PENDING_REUSE_WINDOW_MS = 60 * 60 * 1000;
 
 export const createPaymentLink = async (data: {
   bookingId: number;
@@ -9,6 +14,64 @@ export const createPaymentLink = async (data: {
   customerEmail?: string;
   customerName?: string;
 }) => {
+  const reuseAfter = new Date(Date.now() - PENDING_REUSE_WINDOW_MS);
+
+  const reusablePayment = await prisma.payment.findFirst({
+    where: {
+      bookingId: data.bookingId,
+      status: 'PENDING',
+      createdAt: { gte: reuseAfter },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  const reusableUrl =
+    (reusablePayment?.metadata as any)?.paymentUrl || undefined;
+
+  if (reusablePayment) {
+    await prisma.booking.update({
+      where: { id: data.bookingId },
+      data: {
+        paymentReference: reusablePayment.reference,
+        paymentStatus: 'PENDING',
+      },
+    });
+  }
+
+  if (reusablePayment?.wompiLinkId) {
+    const redirectUrl = process.env.WOMPI_REDIRECT_URL;
+    const paymentUrl = buildCheckoutUrl({
+      linkId: reusablePayment.wompiLinkId,
+      amountInCents: reusablePayment.amount,
+      currency: reusablePayment.currency,
+      reference: reusablePayment.reference,
+      redirectUrl,
+    });
+
+    return {
+      paymentUrl,
+      paymentReference: reusablePayment.reference,
+      paymentId: reusablePayment.id,
+    };
+  }
+
+  if (reusablePayment && reusableUrl) {
+    return {
+      paymentUrl: reusableUrl,
+      paymentReference: reusablePayment.reference,
+      paymentId: reusablePayment.id,
+    };
+  }
+
+  await prisma.payment.updateMany({
+    where: {
+      bookingId: data.bookingId,
+      status: 'PENDING',
+      createdAt: { lt: reuseAfter },
+    },
+    data: { status: 'EXPIRED' },
+  });
+
   const result = await generateWompiLink({
     bookingId: data.bookingId,
     amount: data.amount,
@@ -32,6 +95,11 @@ export const createPaymentLink = async (data: {
       amount,
       currency,
       status: 'PENDING',
+      wompiLinkId: result.wompiLinkId || null,
+      metadata: {
+        wompi: result.metadata || null,
+        paymentUrl: result.paymentUrl,
+      },
     },
     include: {
       Booking: {

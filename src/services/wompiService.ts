@@ -49,6 +49,39 @@ interface WompiPaymentLinkResponse {
   };
 }
 
+export const buildCheckoutUrl = (data: {
+  linkId: string;
+  amountInCents: number;
+  currency: string;
+  reference: string;
+  redirectUrl?: string;
+}) => {
+  const { linkId, amountInCents, currency, reference, redirectUrl } = data;
+
+  const rawSignature = `${reference}${amountInCents}${currency}${WOMPI_INTEGRITY_KEY}`;
+  const signatureIntegrity = crypto
+    .createHash('sha256')
+    .update(rawSignature)
+    .digest('hex');
+
+  const checkoutBaseUrl = 'https://checkout.wompi.co/p/';
+
+  const urlParams = new URLSearchParams({
+    'public-key': WOMPI_PUBLIC_KEY,
+    currency,
+    'amount-in-cents': amountInCents.toString(),
+    reference,
+  });
+
+  urlParams.append('signature:integrity', signatureIntegrity);
+
+  if (redirectUrl) {
+    urlParams.append('redirect-url', redirectUrl);
+  }
+
+  return `${checkoutBaseUrl}${linkId}?${urlParams.toString()}`;
+};
+
 /**
  * Generate Wompi payment link for a booking
  */
@@ -65,7 +98,14 @@ export const generatePaymentLink = async (data: {
   customerPhone: string;
   customerEmail?: string;
   customerName?: string;
-}): Promise<{ success: boolean; paymentUrl?: string; paymentReference?: string; error?: string }> => {
+}): Promise<{
+  success: boolean;
+  paymentUrl?: string;
+  paymentReference?: string;
+  wompiLinkId?: string;
+  metadata?: any;
+  error?: string;
+}> => {
   try {
     if (!WOMPI_PUBLIC_KEY || !WOMPI_PRIVATE_KEY || !WOMPI_INTEGRITY_KEY) {
       console.error('[Wompi] Missing WOMPI_PUBLIC_KEY, WOMPI_PRIVATE_KEY, or WOMPI_INTEGRITY_KEY');
@@ -160,43 +200,20 @@ export const generatePaymentLink = async (data: {
       console.warn('[Wompi] redirect_url not set. "Regresar al comercio" button will not appear.');
     }
     
-    // Generate integrity signature
-    // Order: reference + amount_in_cents + currency + integrity_secret (no separators)
-    // Format: "<reference><amount_in_cents><currency><integrity_secret>"
-    const rawSignature = `${paymentReference}${amountInCents}${data.currency}${WOMPI_INTEGRITY_KEY}`;
-    const signatureIntegrity = crypto
-      .createHash('sha256')
-      .update(rawSignature)
-      .digest('hex');
-    
-    // Construct checkout URL with payment link ID and required parameters
-    // Wompi requires parameters even when using Payment Links
-    const checkoutBaseUrl = 'https://checkout.wompi.co/p/';
-    
-    // Build URL with payment link ID and parameters including signature:integrity
-    const urlParams = new URLSearchParams({
-      'public-key': WOMPI_PUBLIC_KEY,
-      'currency': data.currency,
-      'amount-in-cents': amountInCents.toString(),
-      'reference': paymentReference,
+    const paymentUrl = buildCheckoutUrl({
+      linkId: paymentData.id,
+      amountInCents,
+      currency: data.currency,
+      reference: paymentReference,
+      redirectUrl,
     });
-    
-    // Add signature:integrity parameter
-    urlParams.append('signature:integrity', signatureIntegrity);
-    
-    // Add redirect-url to URL parameters (required for "Regresar al comercio" button)
-    // Wompi requires this parameter in the checkout URL
-    if (redirectUrl) {
-      urlParams.append('redirect-url', redirectUrl);
-    }
-    
-    // Use payment link ID in the path
-    const paymentUrl = `${checkoutBaseUrl}${paymentData.id}?${urlParams.toString()}`;
 
     return {
       success: true,
       paymentUrl: paymentUrl,
       paymentReference: paymentReference, // Use the reference from URL for webhook tracking
+      wompiLinkId: paymentData.id,
+      metadata: paymentData,
     };
   } catch (error) {
     console.error('[Wompi] Error generating payment link:', error);
@@ -206,4 +223,3 @@ export const generatePaymentLink = async (data: {
     };
   }
 };
-
