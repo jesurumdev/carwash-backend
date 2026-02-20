@@ -1,13 +1,16 @@
 import prisma from '../config/database';
 
 export const getServicesByCarWashId = async (carWashId: number) => {
-  // TODO: Implement get services by car wash id
-  return [];
+  return prisma.service.findMany({
+    where: { carWashId, active: true },
+    orderBy: { name: 'asc' },
+  });
 };
 
 export const getServiceById = async (id: number) => {
-  // TODO: Implement get service by id
-  return null;
+  return prisma.service.findUnique({
+    where: { id },
+  });
 };
 
 export const createService = async (data: {
@@ -16,8 +19,14 @@ export const createService = async (data: {
   price: number;
   durationMin: number;
 }) => {
-  // TODO: Implement create service
-  return null;
+  return prisma.service.create({
+    data: {
+      carWashId: data.carWashId,
+      name: data.name,
+      price: data.price,
+      durationMin: data.durationMin,
+    },
+  });
 };
 
 export const updateService = async (
@@ -29,12 +38,14 @@ export const updateService = async (
     active?: boolean;
   }
 ) => {
-  // TODO: Implement update service
-  return null;
+  return prisma.service.update({
+    where: { id },
+    data,
+  });
 };
 
 export const deleteService = async (id: number) => {
-  // TODO: Implement delete service
-  return null;
+  await prisma.service.delete({
+    where: { id },
+  });
 };
-
