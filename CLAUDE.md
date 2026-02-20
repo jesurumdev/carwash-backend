@@ -195,17 +195,17 @@ The state is stored per phone number in the `ConversationState` table.
 
 ### Environment Variables (.env)
 ```
-DATABASE_URL=postgresql://postgres:your-super-secret-and-long-postgres-password@localhost:54322/postgres
-JWT_SECRET=any-secret-string
-WHATSAPP_ACCESS_TOKEN=...
-WHATSAPP_PHONE_NUMBER_ID=...
-WHATSAPP_BUSINESS_ACCOUNT_ID=...
-WHATSAPP_VERIFY_TOKEN=...
-WOMPI_PUBLIC_KEY=...
-WOMPI_PRIVATE_KEY=...
-WOMPI_INTEGRITY_KEY=...
+DATABASE_URL=<your-database-url>
+JWT_SECRET=<your-secret>
+WHATSAPP_ACCESS_TOKEN=<your-token>
+WHATSAPP_PHONE_NUMBER_ID=<your-id>
+WHATSAPP_BUSINESS_ACCOUNT_ID=<your-id>
+WHATSAPP_VERIFY_TOKEN=<your-token>
+WOMPI_PUBLIC_KEY=<your-key>
+WOMPI_PRIVATE_KEY=<your-key>
+WOMPI_INTEGRITY_KEY=<your-key>
 WOMPI_ENVIRONMENT=sandbox
-WOMPI_REDIRECT_URL=...
+WOMPI_REDIRECT_URL=<your-url>
 ```
 
 The `.env` file has both local (Supabase) and production (Railway) DATABASE_URLs. Comment/uncomment to switch.
@@ -222,14 +222,13 @@ npm run build             # Compile TypeScript
 npm start                 # Run compiled JS
 ```
 
-### Seed Data Credentials
-- Owner: `owner@carwash.com` / `password123`
-- Manager: `manager@carwash.com` / `password123`
-- Staff: `staff@carwash.com` / `password123`
+### Seed Data
+Run `npm run prisma:seed` to create sample users, car washes, services, and bookings. See `prisma/seed.ts` for details.
 
 ## Rules for Adding New Features
 
-1. **Follow the layered architecture.** Route -> Controller -> Service -> Prisma.
+1. **Never commit credentials.** No passwords, API keys, tokens, or secrets in documentation files, source code, or commit messages. Use `<placeholder>` values in examples. All secrets belong in `.env` (which is gitignored).
+2. **Follow the layered architecture.** Route -> Controller -> Service -> Prisma.
 2. **Prices in cents in DB, pesos in API.** Use `pesosToCents()` / `centsToPesos()` in controllers.
 3. **Never return password fields.** Use Prisma `select` to exclude them.
 4. **Hash passwords with bcrypt** (salt rounds: 10) before storing.
