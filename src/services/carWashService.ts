@@ -18,8 +18,7 @@ export const createCarWash = async (data: {
   address: string;
   city: string;
 }) => {
-  // TODO: Implement create car wash
-  return null;
+  return prisma.carWash.create({ data });
 };
 
 export const updateCarWash = async (
@@ -31,12 +30,10 @@ export const updateCarWash = async (
     active?: boolean;
   }
 ) => {
-  // TODO: Implement update car wash
-  return null;
+  return prisma.carWash.update({ where: { id }, data });
 };
 
 export const deleteCarWash = async (id: number) => {
-  // TODO: Implement delete car wash
-  return null;
+  return prisma.carWash.delete({ where: { id } });
 };
 
