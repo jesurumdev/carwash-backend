@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import * as statsService from '../services/statsService';
+import { parseDateInput } from '../utils/date';
 
 export const getDashboardStats = async (
   req: Request,
@@ -19,12 +20,14 @@ export const getBookingStats = async (
   res: Response
 ): Promise<void> => {
   try {
-    const startDate = req.query.startDate
-      ? new Date(req.query.startDate as string)
-      : undefined;
-    const endDate = req.query.endDate
-      ? new Date(req.query.endDate as string)
-      : undefined;
+    const startDate =
+      typeof req.query.startDate === 'string'
+        ? parseDateInput(req.query.startDate)
+        : undefined;
+    const endDate =
+      typeof req.query.endDate === 'string'
+        ? parseDateInput(req.query.endDate)
+        : undefined;
 
     const stats = await statsService.getBookingStats(startDate, endDate);
     res.json(stats);
@@ -39,12 +42,14 @@ export const getRevenueStats = async (
   res: Response
 ): Promise<void> => {
   try {
-    const startDate = req.query.startDate
-      ? new Date(req.query.startDate as string)
-      : undefined;
-    const endDate = req.query.endDate
-      ? new Date(req.query.endDate as string)
-      : undefined;
+    const startDate =
+      typeof req.query.startDate === 'string'
+        ? parseDateInput(req.query.startDate)
+        : undefined;
+    const endDate =
+      typeof req.query.endDate === 'string'
+        ? parseDateInput(req.query.endDate)
+        : undefined;
 
     const stats = await statsService.getRevenueStats(startDate, endDate);
     res.json(stats);
@@ -53,4 +58,3 @@ export const getRevenueStats = async (
     res.status(500).json({ error: 'Internal server error' });
   }
 };
-
