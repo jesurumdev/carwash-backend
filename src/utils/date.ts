@@ -1,4 +1,4 @@
-import { zonedTimeToUtc } from 'date-fns-tz';
+import { fromZonedTime } from 'date-fns-tz';
 
 const LOCAL_TIMEZONE = 'America/Bogota';
 
@@ -17,11 +17,11 @@ export const parseDateInput = (value: string, timezone = LOCAL_TIMEZONE) => {
   }
 
   const localDateTime = normalizeLocalDateTime(value);
-  return zonedTimeToUtc(localDateTime, timezone);
+  return fromZonedTime(localDateTime, timezone);
 };
 
 export const getLocalDayRange = (dateStr: string, timezone = LOCAL_TIMEZONE) => {
-  const start = zonedTimeToUtc(`${dateStr}T00:00:00`, timezone);
-  const end = zonedTimeToUtc(`${dateStr}T23:59:59.999`, timezone);
+  const start = fromZonedTime(`${dateStr}T00:00:00`, timezone);
+  const end = fromZonedTime(`${dateStr}T23:59:59.999`, timezone);
   return { start, end };
 };
