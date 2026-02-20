@@ -24,7 +24,7 @@ The recommended approach is using Supabase local. If you already have a Supabase
 Alternatively, you can use a standalone Postgres container:
 
 ```bash
-docker run --name carwash-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=carwash -p 5432:5432 -d postgres
+docker run --name carwash-db -e POSTGRES_PASSWORD=<your-password> -e POSTGRES_DB=carwash -p 5432:5432 -d postgres
 ```
 
 ### 3. Configure environment variables
@@ -38,14 +38,8 @@ cp .env.example .env
 At minimum, set these for local development:
 
 ```env
-DATABASE_URL=postgresql://postgres:your-super-secret-and-long-postgres-password@localhost:54322/postgres
-JWT_SECRET=any-secret-string-for-local-dev
-```
-
-If using a standalone Postgres container instead of Supabase:
-
-```env
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/carwash
+DATABASE_URL=postgresql://postgres:<your-password>@localhost:<port>/<database>
+JWT_SECRET=<your-secret>
 ```
 
 The WhatsApp and Wompi keys are only required if you need to test those integrations. The core API works without them.
@@ -63,15 +57,7 @@ npx prisma migrate dev
 npm run prisma:seed
 ```
 
-This creates:
-
-| User | Email | Password | Role |
-|------|-------|----------|------|
-| John Owner | owner@carwash.com | password123 | OWNER |
-| Jane Manager | manager@carwash.com | password123 | MANAGER |
-| Bob Staff | staff@carwash.com | password123 | STAFF |
-
-Plus 3 car wash locations, 6 services, and 4 sample bookings.
+This creates sample users (OWNER, MANAGER, STAFF), 3 car wash locations, 6 services, and 4 sample bookings. Check `prisma/seed.ts` for details.
 
 ### 6. Start the dev server
 
@@ -94,7 +80,7 @@ All write endpoints require a JWT token. Get one by logging in:
 ```bash
 curl -X POST http://localhost:3000/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email": "owner@carwash.com", "password": "password123"}'
+  -d '{"email": "<your-email>", "password": "<your-password>"}'
 ```
 
 Use the returned token in subsequent requests:
@@ -109,11 +95,7 @@ curl http://localhost:3000/auth/me \
 To bootstrap a user without the API:
 
 ```bash
-# With defaults (test@example.com / password123 / OWNER)
-npm run create-user
-
-# With custom values
-npm run create-user -- email@example.com mypassword "User Name" STAFF
+npm run create-user -- <email> <password> "<name>" <role>
 ```
 
 ## Available Scripts
@@ -146,48 +128,3 @@ npm run create-user -- email@example.com mypassword "User Name" STAFF
 | `/webhooks/wompi` | Wompi payment webhook |
 | `GET /health` | Health check |
 
-## Testing WhatsApp Flow Locally
-
-You can simulate WhatsApp messages by posting Meta's webhook format directly:
-
-```bash
-curl -X POST http://localhost:3000/webhooks/whatsapp \
-  -H "Content-Type: application/json" \
-  -d '{
-    "object": "whatsapp_business_account",
-    "entry": [{
-      "changes": [{
-        "value": {
-          "messages": [{
-            "from": "573001234567",
-            "type": "text",
-            "text": { "body": "" }
-          }]
-        }
-      }]
-    }]
-  }'
-```
-
-Reply messages will appear in the server console logs. For real WhatsApp delivery, you need a Meta developer account and a tunnel (e.g. ngrok).
-
-## Testing Wompi Webhooks Locally
-
-Simulate a payment status update:
-
-```bash
-curl -X POST http://localhost:3000/webhooks/wompi \
-  -H "Content-Type: application/json" \
-  -d '{
-    "event": "transaction.updated",
-    "data": {
-      "transaction": {
-        "id": "txn_123",
-        "reference": "YOUR_PAYMENT_REFERENCE",
-        "status": "APPROVED"
-      }
-    }
-  }'
-```
-
-Replace `YOUR_PAYMENT_REFERENCE` with an actual reference from the Payment table.
