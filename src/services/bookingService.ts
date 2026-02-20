@@ -1,7 +1,21 @@
 import prisma from '../config/database';
 
-export const getAllBookings = async () => {
+export const getAllBookings = async (dateRange?: {
+  start?: Date;
+  end?: Date;
+}) => {
+  const where =
+    dateRange?.start && dateRange?.end
+      ? {
+          date: {
+            gte: dateRange.start,
+            lte: dateRange.end,
+          },
+        }
+      : undefined;
+
   const bookings = await prisma.booking.findMany({
+    ...(where ? { where } : {}),
     include: {
       CarWash: true,
       Service: true,
@@ -81,4 +95,3 @@ export const deleteBooking = async (id: number) => {
     where: { id },
   });
 };
-

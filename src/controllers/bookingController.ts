@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import * as bookingService from '../services/bookingService';
 import { sendBookingStatusNotification } from '../services/bookingNotificationService';
+import { getLocalDayRange, parseDateInput } from '../utils/date';
 import { centsToPesos } from '../utils/money';
 
 const mapBooking = (booking: any) => {
@@ -22,7 +23,19 @@ export const getAllBookings = async (
   res: Response
 ): Promise<void> => {
   try {
-    const bookings = await bookingService.getAllBookings();
+    const dateParam = req.query.date;
+    let dateRange: { start: Date; end: Date } | undefined;
+
+    if (typeof dateParam === 'string' && dateParam.length > 0) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+        res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD.' });
+        return;
+      }
+
+      dateRange = getLocalDayRange(dateParam);
+    }
+
+    const bookings = await bookingService.getAllBookings(dateRange);
     res.json(bookings.map(mapBooking));
   } catch (error) {
     console.error('Get all bookings error:', error);
@@ -60,7 +73,7 @@ export const createBooking = async (
       carWashId,
       serviceId,
       customerPhone,
-      date: new Date(date),
+      date: parseDateInput(date),
       status: status || 'PENDING_PAYMENT',
     });
     res.status(201).json(mapBooking(booking));
@@ -126,7 +139,7 @@ export const updateBooking = async (
 
     const updateData: any = { ...req.body };
     if (updateData.date) {
-      updateData.date = new Date(updateData.date);
+      updateData.date = parseDateInput(updateData.date);
     }
     const booking = await bookingService.updateBooking(id, updateData);
 
